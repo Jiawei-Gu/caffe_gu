@@ -241,7 +241,12 @@ void DataTransformer<Dtype>::Transform(const cv::Mat& cv_img,
   CHECK_LE(width, img_width);
   CHECK_GE(num, 1);
 
-  CHECK(cv_img.depth() == CV_8U) << "Image data type must be unsigned byte";
+	/****^_^******/
+  if (img_height == 1 && img_width != 1) {
+		CHECK(cv_img.depth() == CV_32F) << "NoImage data type must be Float";
+	}
+	else CHECK(cv_img.depth() == CV_8U) << "Image data type must be unsigned byte";
+	/****^_^*****/
 
   const Dtype scale = param_.scale();
   const bool do_mirror = param_.mirror() && Rand(2);
@@ -296,7 +301,14 @@ void DataTransformer<Dtype>::Transform(const cv::Mat& cv_img,
   Dtype* transformed_data = transformed_blob->mutable_cpu_data();
   int top_index;
   for (int h = 0; h < height; ++h) {
-    const uchar* ptr = cv_cropped_img.ptr<uchar>(h);
+    /***^_^******/
+		float* ptr1;
+		uchar* ptr2;
+		if (img_height == 1 && img_width != 1) {
+			ptr1 = cv_cropped_img.ptr<float>(h);
+		}
+		else ptr2 = cv_cropped_img.ptr<uchar>(h);
+		/****^_^****/
     int img_index = 0;
     for (int w = 0; w < width; ++w) {
       for (int c = 0; c < img_channels; ++c) {
@@ -306,7 +318,13 @@ void DataTransformer<Dtype>::Transform(const cv::Mat& cv_img,
           top_index = (c * height + h) * width + w;
         }
         // int top_index = (c * height + h) * width + w;
-        Dtype pixel = static_cast<Dtype>(ptr[img_index++]);
+        /***^_^******/
+				Dtype pixel;
+				if (img_height == 1 && img_width != 1) {
+					pixel = static_cast<Dtype>(ptr1[img_index++]);
+				}
+				else pixel = static_cast<Dtype>(ptr2[img_index++]);
+				/****^_^****/
         if (has_mean_file) {
           int mean_index = (c * img_height + h_off + h) * img_width + w_off + w;
           transformed_data[top_index] =
@@ -503,6 +521,7 @@ vector<int> DataTransformer<Dtype>::InferBlobShape(const cv::Mat& cv_img) {
   shape[1] = img_channels;
   shape[2] = (crop_size)? crop_size: img_height;
   shape[3] = (crop_size)? crop_size: img_width;
+	//LOG(INFO) << "data_transformer: " << img_channels << img_height << img_width;
   return shape;
 }
 
